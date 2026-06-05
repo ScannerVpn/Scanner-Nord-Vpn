@@ -1,23 +1,5 @@
 node_modules/
 dist/
-out/
-release/
-
-# Cache files (generated at runtime)
 servers_cache.json
-credentials.json
-
-# NordVPN local data
-*.json.bak
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
 *.log
-npm-debug.log*
-
-# Editor
-.vscode/
-.idea/
+.DS_Store
