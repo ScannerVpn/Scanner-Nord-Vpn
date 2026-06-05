@@ -116,6 +116,12 @@ The result badge:
 - Server data is cached locally and refreshed every 12 hours.
 - Results depend on your ISP and network conditions at the time of the ping.
 
+> ### 🔴 مهم — قبل از ping گرفتن VPN رو خاموش کن
+> نتایج فقط وقتی معتبره که **VPN کاملاً خاموش باشه**.
+> اگه VPN روشن باشه، همه سرورها `✓VPN` نشون میدن چون ترافیک از طریق خود VPN رد میشه و فیلتر ISP دور زده میشه — نتیجه واقعی نیست.
+> 
+> **روش درست:** VPN رو ببند ← برنامه رو باز کن ← ping بگیر ← سرورهایی که `✓VPN` دارن رو توی اپ NordVPN امتحان کن.
+
 ---
 
 ## 🏗️ Build (Distributable .exe / .dmg)
