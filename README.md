@@ -66,62 +66,6 @@ node server.js
 http://localhost:3000/dashboard.html
 ```
 
----
-
-## 📱 اجرا روی اندروید (Termux)
-
-میتونی همین داشبورد رو روی گوشی اندروید اجرا کنی — بدون root.
-
-### نصب Termux
-
-از [GitHub](https://github.com/termux/termux-app/releases)
-یا [Google Play](https://play.google.com/store/apps/details?id=com.termux) دانلود کن.
-### مراحل
-
-```bash
-# آپدیت و نصب پیش‌نیازها
-pkg update && pkg upgrade -y
-pkg install nodejs git -y
-
-# کلون و نصب
-git clone https://github.com/ScannerVpn/Scanner-Nord-Vpn.git
-cd Scanner-Nord-Vpn
-npm install
-
-# اجرا
-node server.js
-```
-
-بعد مرورگر گوشی رو باز کن:
-```
-http://localhost:3000/dashboard.html
-```
-
-### اجرا در پس‌زمینه (بدون بسته شدن با Termux)
-
-```bash
-# نصب tmux
-pkg install tmux -y
-
-# یه session جدید بساز
-tmux new -s nord
-
-# سرور رو start کن
-node server.js
-
-# از session خارج بشو بدون بستنش: Ctrl+B بعد D
-# برای برگشتن:
-tmux attach -t nord
-```
-
-### ⚠️ نکات مهم Termux
-
-- **TLS probe** کاملاً کار میکنه — نتایج `✓VPN` و `⚠DPI` دقیق هستن
-- **ICMP ping** بدون root کار **نمیکنه** — این نرماله، چون Termux دسترسی raw socket نداره. سرورهایی که فقط از ICMP جواب میدن `✕VPN` نشون میده ولی ممکنه واقعاً accessible باشن — به نتایج `✓VPN` و `⚠DPI` اعتماد کن
-- اگه خطای `EACCES` برای UDP گرفتی، WireGuard probe کار نمیکنه — باقی probe‌ها سالمن
-
----
-
 ## 🗂️ ساختار پروژه
 
 ```
