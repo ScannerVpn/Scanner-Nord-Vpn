@@ -7,8 +7,33 @@ const { exec } = require('child_process');
 
 const PORT = 3000;
 const NORD_CACHE_PATH = path.join(os.homedir(), 'AppData', 'Local', 'NordVPN', 'servers_v2.json');
-const OWN_CACHE_FILE = path.join(__dirname, 'servers_cache.json');
-const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+
+// وقتی برنامه به صورت exe پکیج میشه، __dirname داخل app.asar هست و نمیشه
+// فایل نوشت. userData (AppData\\Roaming\\NordVPN Dashboard) همیشه writable هست.
+const _electron = (() => { try { return require('electron'); } catch { return {}; } })();
+const _app = _electron.app || null;
+
+const USER_DATA_DIR = (() => {
+  if (_app) {
+    try { return _app.getPath('userData'); } catch {}
+  }
+  return path.join(os.homedir(), 'AppData', 'Roaming', 'NordVPN Dashboard');
+})();
+
+try { if (!fs.existsSync(USER_DATA_DIR)) fs.mkdirSync(USER_DATA_DIR, { recursive: true }); } catch {}
+
+const OWN_CACHE_FILE = path.join(USER_DATA_DIR, 'servers_cache.json');
+const CACHE_TTL_MS   = 12 * 60 * 60 * 1000;
+
+// مسیر فایل HTML — در حالت پکیج‌شده داخل resources/app قرار داره
+const HTML_FILE = (() => {
+  const candidates = [
+    process.resourcesPath ? path.join(process.resourcesPath, 'app', 'nordvpn_dashboard.html') : null,
+    path.join(__dirname, 'nordvpn_dashboard.html'),
+  ].filter(Boolean);
+  return candidates.find(p => { try { return fs.existsSync(p); } catch { return false; } })
+    || candidates[candidates.length - 1];
+})();
 
 // ==================== Technology map ====================
 const TECH_ID_MAP = {
@@ -50,7 +75,14 @@ function loadStationMap() {
 // ICMP ping از طریق ping.exe
 function icmpPing(target, timeoutMs = 3000) {
   return new Promise((resolve) => {
-    exec(`ping -n 1 -w ${timeoutMs} ${target}`,
+    // مسیر کامل ping.exe برای کار کردن در محیط پکیج‌شده Electron
+    const pingExe = process.platform === 'win32'
+      ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'ping.exe')
+      : 'ping';
+    const pingCmd = process.platform === 'win32'
+      ? `"${pingExe}" -n 1 -w ${timeoutMs} ${target}`
+      : `ping -c 1 -W ${Math.ceil(timeoutMs/1000)} ${target}`;
+    exec(pingCmd,
       { timeout: timeoutMs + 2000 },
       (err, stdout) => {
         if (!stdout) return resolve(null);
@@ -143,33 +175,31 @@ function udpProbe(ip, port, timeoutMs = 3000) {
   });
 }
 
-// پینگ + تشخیص واقعی accessibility برای ایران
-// ترتیب: TLS 443 → TLS 80 → TLS 1194 → WireGuard UDP → TCP SYN → ICMP
+// پینگ + تشخیص واقعی accessibility برای ایران — نسخه موازی (سریع‌تر)
+// همه probe‌ها همزمان اجرا میشن؛ اولین جواب مثبت برنده‌ست.
+// اگه هیچ VPN probe جواب نداد، TCP SYN و ICMP رو هم چک میکنیم.
 async function bestPing(hostname) {
   const realIP = stationMap[hostname] || hostname;
 
-  // ۱. TLS handshake کامل روی 443 — قوی‌ترین تست
-  const tls443 = await tlsProbe(realIP, 443, hostname, 5000);
-  if (tls443 !== null) return { ms: tls443, method: 'tls443', vpnAccessible: true };
+  // ---- مرحله ۱: همه VPN probe‌ها موازی ----
+  // هر probe یا {ms, method} برمیگردونه یا null
+  const vpnProbes = [
+    tlsProbe(realIP, 443,   hostname, 3000).then(ms => ms !== null ? { ms, method: 'tls443',   vpnAccessible: true } : null),
+    tlsProbe(realIP, 80,    hostname, 3000).then(ms => ms !== null ? { ms, method: 'tls80',    vpnAccessible: true } : null),
+    tlsProbe(realIP, 1194,  hostname, 3000).then(ms => ms !== null ? { ms, method: 'tls1194',  vpnAccessible: true } : null),
+    udpProbe(realIP, 51820,          2000).then(ms => ms !== null ? { ms, method: 'wg51820',  vpnAccessible: true } : null),
+  ];
 
-  // ۲. TLS روی 80 — OpenVPN TCP روی HTTP port (در ایران کمتر بلاک میشه)
-  const tls80 = await tlsProbe(realIP, 80, hostname, 5000);
-  if (tls80 !== null) return { ms: tls80, method: 'tls80', vpnAccessible: true };
+  // race که null رو skip کنه — اولین non-null جواب رو برمیگردونه
+  const vpnResult = await Promise.all(vpnProbes).then(results => results.find(r => r !== null) || null);
+  if (vpnResult) return vpnResult;
 
-  // ۳. WireGuard UDP 51820
-  const wg = await udpProbe(realIP, 51820, 3000);
-  if (wg !== null) return { ms: wg, method: 'wg51820', vpnAccessible: true };
-
-  // ۴. TLS روی 1194
-  const tls1194 = await tlsProbe(realIP, 1194, hostname, 4000);
-  if (tls1194 !== null) return { ms: tls1194, method: 'tls1194', vpnAccessible: true };
-
-  // ۵. TCP SYN فقط — زنده‌ست ولی احتمال DPI
-  const tcp443 = await tcpTest(realIP, 443, 2000);
+  // ---- مرحله ۲: TCP SYN — DPI detection ----
+  const tcp443 = await tcpTest(realIP, 443, 1500);
   if (tcp443 !== null) return { ms: tcp443, method: 'tcp443-syn', vpnAccessible: false };
 
-  // ۶. ICMP — IP زنده‌ست ولی VPN بلاکه
-  const icmp = await icmpPing(realIP, 3000);
+  // ---- مرحله ۳: ICMP — IP زنده‌ست ولی VPN بلاکه ----
+  const icmp = await icmpPing(realIP, 2000);
   if (icmp !== null) return { ms: icmp, method: 'icmp', vpnAccessible: false };
 
   return { ms: null, method: null, vpnAccessible: false };
@@ -398,7 +428,7 @@ const server = http.createServer((req, res) => {
 
   // ---- صفحه اصلی ----
   if (pathname === '/' || pathname === '/dashboard.html' || pathname === '/nordvpn_dashboard.html') {
-    fs.readFile(path.join(__dirname, 'nordvpn_dashboard.html'), (err, data) => {
+    fs.readFile(HTML_FILE, (err, data) => {
       if (err) { res.writeHead(404); res.end('Not found'); return; }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.writeHead(200);
