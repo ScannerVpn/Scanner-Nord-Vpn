@@ -74,8 +74,8 @@ http://localhost:3000/dashboard.html
 
 ### نصب Termux
 
-از [F-Droid](https://f-droid.org/packages/com.termux/) دانلود کن — **نه Google Play** (نسخه Play Store قدیمیه).
-
+از [GitHub](https://github.com/termux/termux-app/releases)
+یا [Google Play](https://play.google.com/store/apps/details?id=com.termux) دانلود کن.
 ### مراحل
 
 ```bash
