@@ -139,6 +139,9 @@ tbody tr:hover{background:#f0f7ff!important}
   <button class="ping-btn" id="ping-btn" onclick="pingAll()">
     📡 Test ping
   </button>
+  <button class="ping-btn" id="stop-btn" onclick="stopScan()" style="display:none;background:#fff3f3;border-color:#f5c0c0;color:#c0392b">
+    ⛔ Stop
+  </button>
   <span class="ping-progress" id="ping-progress"></span>
 </div>
 
@@ -173,6 +176,7 @@ tbody tr:hover{background:#f0f7ff!important}
       <div style="display:flex;align-items:center;gap:10px">
         <h2 id="modal-title">Servers</h2>
         <button class="ping-btn-small" onclick="pingAllModalServers()" id="modal-ping-btn">📡 Ping all</button>
+        <button class="ping-btn-small" onclick="stopScan()" id="modal-stop-btn" style="display:none;background:#fff3f3;border-color:#f5c0c0;color:#c0392b">⛔ Stop</button>
         <span id="modal-ping-progress" style="font-size:11px;color:#888"></span>
       </div>
       <span class="modal-close" onclick="closeModal()">✕</span>
@@ -212,6 +216,7 @@ let sortCol = 'load';
 let sortDir = -1;
 let filterMode = 'all';
 let pingRunning = false;
+let stopScanRequested = false;   // ← دکمه Stop
 let currentModalServers = []; // سرورهای در حال نمایش موودال
 
 // ================== API fetch ==================
@@ -416,22 +421,31 @@ async function pingHost(hostname) {
   }
 }
 
+function stopScan() {
+  stopScanRequested = true;
+}
+
 async function pingAll() {
   if (pingRunning) return;
   pingRunning = true;
+  stopScanRequested = false;
 
   const btn = document.getElementById('ping-btn');
+  const stopBtn = document.getElementById('stop-btn');
   const prog = document.getElementById('ping-progress');
   btn.classList.add('running');
   btn.textContent = '⏳ Testing...';
+  stopBtn.style.display = 'inline-flex';
 
-  // از هر کشور بهترین هاست رو پینگ میکنیم
-  const batchSize = 6;
+  // از هر کشور بهترین هاست رو پینگ میکنیم — batch بزرگ‌تر = سریع‌تر
+  const batchSize = 15;
   let done = 0;
 
   for (let i = 0; i < allData.length; i += batchSize) {
+    if (stopScanRequested) break;
     const batch = allData.slice(i, i + batchSize);
     await Promise.all(batch.map(async d => {
+      if (stopScanRequested) return;
       if (!d.hosts?.length) return;
       const ms = await pingHost(d.hosts[0]);
       pingData[d.hosts[0]] = ms;
@@ -443,8 +457,11 @@ async function pingAll() {
 
   btn.classList.remove('running');
   btn.textContent = '📡 Re-test ping';
-  prog.textContent = '';
+  prog.textContent = stopScanRequested ? '⛔ Stopped' : '';
+  stopBtn.style.display = 'none';
   pingRunning = false;
+  stopScanRequested = false;
+  setTimeout(() => { prog.textContent = ''; }, 2500);
 }
 
 // ================== Sorting / filtering ==================
@@ -633,17 +650,22 @@ async function pingSingleModal(btn) {
 
 async function pingAllModalServers() {
   const btn = document.getElementById('modal-ping-btn');
+  const stopBtn = document.getElementById('modal-stop-btn');
   const prog = document.getElementById('modal-ping-progress');
   btn.disabled = true;
   btn.textContent = '⏳ Testing...';
+  stopBtn.style.display = 'inline-block';
+  stopScanRequested = false;
 
-  const batchSize = 5;
+  const batchSize = 10;
   let done = 0;
   const total = currentModalServers.length;
 
   for (let i = 0; i < currentModalServers.length; i += batchSize) {
+    if (stopScanRequested) break;
     const batch = currentModalServers.slice(i, i + batchSize);
     await Promise.all(batch.map(async s => {
+        if (stopScanRequested) return;
         const ms = await pingHost(s.hostname);
         pingData[s.hostname] = ms;
         done++;
@@ -674,10 +696,13 @@ async function pingAllModalServers() {
       }));
   }
 
-  prog.textContent = `Done (${total})`;
+  prog.textContent = stopScanRequested ? '⛔ Stopped' : `Done (${done})`;
+  stopBtn.style.display = 'none';
   btn.disabled = false;
   btn.textContent = '📡 Ping all';
-  render(); // آپدیت جدول اصلی
+  stopScanRequested = false;
+  setTimeout(() => { prog.textContent = ''; }, 2500);
+  render();
 }
 
 // hostname -> نام نمایشی اپ نورد (مثلاً de1280.nordvpn.com -> Germany #1280)
