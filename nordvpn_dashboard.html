@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NordVPN Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f5f5f5;color:#1a1a1a;padding:20px;direction:ltr}
+h1{font-size:20px;font-weight:500;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+h1 span{font-size:13px;font-weight:400;color:#666;background:#fff;border:1px solid #e0e0e0;padding:3px 10px;border-radius:20px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat{background:#fff;border-radius:10px;padding:14px;text-align:center;border:1px solid #e8e8e8}
+.stat-label{font-size:11px;color:#888;margin-bottom:5px}
+.stat-val{font-size:20px;font-weight:600;color:#1a1a1a}
+.controls{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.controls select,.controls input{font-size:13px;padding:7px 11px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#1a1a1a;outline:none}
+.controls input{width:170px}
+.controls select:focus,.controls input:focus{border-color:#4a90d9}
+.toggle{display:flex;gap:4px}
+.toggle button{font-size:12px;padding:6px 12px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666;cursor:pointer;transition:.15s}
+.toggle button:hover{background:#f0f0f0}
+.toggle button.active{background:#e8f0fd;color:#1a5dbf;border-color:#a8c4f0}
+.ping-btn{font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#1a1a1a;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s}
+.ping-btn:hover{background:#f0f0f0}
+.ping-btn.running{opacity:.55;pointer-events:none}
+.status-row{font-size:12px;color:#888;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;display:inline-block;animation:pulse 2s ease-in-out infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.table-wrap{background:#fff;border-radius:10px;border:1px solid #e8e8e8;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:9px 12px;font-size:11px;font-weight:600;color:#888;border-bottom:1px solid #eee;cursor:pointer;user-select:none;white-space:nowrap;background:#fafafa}
+th:hover{color:#333}
+td{padding:8px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:8px;font-weight:600}
+.b-p2p{background:#e6f7ef;color:#0f6e56}
+.b-free{background:#e8f0fd;color:#1a5dbf}
+.ping-cell{display:flex;align-items:center;gap:6px;min-width:80px}
+.ping-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-good{background:#1D9E75}
+.dot-mid{background:#EF9F27}
+.dot-bad{background:#E24B4A}
+.dot-grey{background:#ccc}
+.ping-val{font-size:12px;font-weight:600}
+.ping-spinner{width:10px;height:10px;border:2px solid #ddd;border-top-color:#4a90d9;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-bar-wrap{display:flex;align-items:center;gap:6px}
+.load-track{width:55px;height:5px;background:#eee;border-radius:3px;flex-shrink:0}
+.load-fill{height:5px;border-radius:3px}
+.api-note{margin-top:12px;font-size:12px;color:#888;background:#fff8e1;border:1px solid #ffe082;padding:10px 14px;border-radius:8px;line-height:1.6}
+.overlay{display:flex;align-items:center;justify-content:center;padding:40px;font-size:13px;color:#888;gap:10px}
+.overlay-spinner{width:18px;height:18px;border:2px solid #eee;border-top-color:#4a90d9;border-radius:50%;animation:spin .7s linear infinite}
+tbody tr{cursor:pointer;transition:.1s}
+tbody tr:hover{background:#f0f7ff!important}
+
+/* Server modal */
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.modal.active{display:flex}
+.modal-content{background:#fff;border-radius:12px;max-width:980px;width:92%;max-height:85vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.modal-header{padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;justify-content:space-between;background:#f9f9f9;position:sticky;top:0;z-index:10}
+.modal-header h2{font-size:16px;margin:0}
+.modal-close{cursor:pointer;font-size:22px;color:#999;line-height:1;padding:0 4px}
+.modal-close:hover{color:#333}
+.modal-body{padding:0}
+.servers-table{width:100%;border-collapse:collapse;font-size:12px}
+.servers-table th{text-align:left;padding:10px 12px;font-size:11px;font-weight:600;color:#888;border-bottom:1px solid #eee;background:#fafafa;position:sticky;top:0}
+.servers-table td{padding:9px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.servers-table tr:hover td{background:#fafafa}
+.server-hostname{font-family:monospace;font-size:11px;color:#444;background:#f5f5f5;padding:3px 6px;border-radius:4px}
+.ping-btn-small{font-size:11px;padding:4px 10px;border:1px solid #ddd;background:#fff;border-radius:6px;cursor:pointer;transition:.15s}
+.ping-btn-small:hover{background:#f0f0f0}
+.ping-btn-small:disabled{opacity:.5;cursor:default}
+.proto-tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:5px;background:#eef2ff;color:#3730a3;font-weight:500;margin:1px}
+.ping-progress{font-size:11px;color:#888;margin-left:4px}
+.load-fill{height:5px;border-radius:3px}
+.api-note{margin-top:12px;font-size:12px;color:#888;background:#fff8e1;border:1px solid #ffe082;padding:10px 14px;border-radius:8px;line-height:1.6}
+.overlay{display:flex;align-items:center;justify-content:center;padding:40px;font-size:13px;color:#888;gap:10px}
+.overlay-spinner{width:18px;height:18px;border:2px solid #eee;border-top-color:#4a90d9;border-radius:50%;animation:spin .7s linear infinite}
+tbody tr{cursor:pointer;transition:.1s}
+tbody tr:hover{background:#f0f7ff!important}
+/* Modal */
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.modal.active{display:flex}
+.modal-content{background:#fff;border-radius:12px;max-width:980px;width:92%;max-height:85vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.modal-header{padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;justify-content:space-between;background:#f9f9f9;position:sticky;top:0;z-index:10}
+.modal-header h2{font-size:16px;margin:0}
+.modal-close{cursor:pointer;font-size:22px;color:#999;line-height:1;padding:0 4px}
+.modal-close:hover{color:#333}
+.modal-body{padding:0}
+.servers-table{width:100%;border-collapse:collapse;font-size:12px}
+.servers-table th{text-align:left;padding:10px 12px;font-size:11px;font-weight:600;color:#888;border-bottom:1px solid #eee;background:#fafafa;position:sticky;top:0}
+.servers-table td{padding:9px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.servers-table tr:hover td{background:#fafafa}
+.server-hostname{font-family:monospace;font-size:11px;color:#444;background:#f5f5f5;padding:3px 6px;border-radius:4px}
+.ping-btn-small{font-size:11px;padding:4px 10px;border:1px solid #ddd;background:#fff;border-radius:6px;cursor:pointer;transition:.15s}
+.ping-btn-small:hover{background:#f0f0f0}
+.ping-btn-small:disabled{opacity:.5;cursor:default}
+.proto-tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:5px;background:#eef2ff;color:#3730a3;font-weight:500;margin:1px}
+.ping-progress{font-size:11px;color:#888;margin-right:8px}
+</style>
+</head>
+<body>
+<h1>🛡️ NordVPN Server Dashboard <span id="live-badge">connecting...</span></h1>
+
+<div class="stats">
+  <div class="stat"><div class="stat-label">Total users</div><div class="stat-val" id="s-users">—</div></div>
+  <div class="stat"><div class="stat-label">Connections</div><div class="stat-val" id="s-conn">—</div></div>
+  <div class="stat"><div class="stat-label">Locations</div><div class="stat-val" id="s-locs">—</div></div>
+  <div class="stat"><div class="stat-label">Total servers</div><div class="stat-val" id="s-srv">—</div></div>
+</div>
+
+<div id="cache-bar" style="display:none;padding:8px 14px;border-radius:8px;font-size:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid #e0e0e0;background:#f9f9f9">
+  <span id="cache-msg"></span>
+  <button onclick="refreshCache()" id="refresh-cache-btn" style="font-size:12px;padding:4px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer">🔄 Refresh از API (با VPN)</button>
+  <span id="refresh-status" style="color:#666"></span>
+</div>
+
+<!-- نوار سرور متصل -->
+<div id="conn-bar" style="display:none;padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:10px;display:flex;align-items:center;gap:12px;border:1px solid #81c784;background:#e8f5e9">
+  <span style="font-size:16px">🔒</span>
+  <div>
+    <strong id="conn-server">—</strong>
+    <span id="conn-proto" style="margin-right:8px;font-size:11px;background:#c8e6c9;color:#1b5e20;padding:2px 7px;border-radius:4px;font-weight:600"></span>
+    <span style="font-size:11px;color:#555">متصل هستی</span>
+  </div>
+  <span id="conn-ping" style="margin-right:auto;font-size:12px;color:#555"></span>
+</div>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="Search country..." oninput="render()">
+  <select id="continent" onchange="render()"><option value="">All continents</option></select>
+  <div class="toggle">
+    <button onclick="setFilter('all')" class="active" id="f-all">All</button>
+    <button onclick="setFilter('p2p')" id="f-p2p">P2P</button>
+    <button onclick="setFilter('free')" id="f-free">Free</button>
+  </div>
+  <button class="ping-btn" id="ping-btn" onclick="pingAll()">
+    📡 Test ping
+  </button>
+  <span class="ping-progress" id="ping-progress"></span>
+</div>
+
+<div class="status-row">
+  <span class="live-dot" id="live-dot"></span>
+  <span id="status-txt">Connecting to NordVPN API...</span>
+</div>
+
+<div class="table-wrap">
+  <div class="overlay" id="overlay"><div class="overlay-spinner"></div> Loading servers...</div>
+  <table id="main-table" style="display:none">
+    <thead><tr>
+      <th onclick="sortBy('name')" id="h-name">Country ↕</th>
+      <th onclick="sortBy('continent')" id="h-continent">Continent ↕</th>
+      <th onclick="sortBy('load')" id="h-load">Load ↕</th>
+      <th onclick="sortBy('ping')" id="h-ping">Ping (TCP) ↕</th>
+      <th onclick="sortBy('servers')" id="h-servers">Servers ↕</th>
+      <th>P2P</th>
+      <th>Plan</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+<div id="api-note" class="api-note" style="display:none"></div>
+
+<!-- Login Modal -->
+
+<!-- Server Modal -->
+<div id="servers-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:10px">
+        <h2 id="modal-title">Servers</h2>
+        <button class="ping-btn-small" onclick="pingAllModalServers()" id="modal-ping-btn">📡 Ping all</button>
+        <span id="modal-ping-progress" style="font-size:11px;color:#888"></span>
+      </div>
+      <span class="modal-close" onclick="closeModal()">✕</span>
+    </div>
+    <div class="modal-body">
+      <table class="servers-table">
+        <thead><tr>
+          <th>Hostname</th>
+          <th>Name (در اپ)</th>
+          <th>Load</th>
+          <th>Ping (ICMP)</th>
+          <th>Protocols</th>
+        </tr></thead>
+        <tbody id="servers-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const flags = {AF:"🇦🇫",AL:"🇦🇱",DZ:"🇩🇿",AR:"🇦🇷",AM:"🇦🇲",AU:"🇦🇺",AT:"🇦🇹",AZ:"🇦🇿",BE:"🇧🇪",BA:"🇧🇦",BR:"🇧🇷",BG:"🇧🇬",CA:"🇨🇦",CL:"🇨🇱",CO:"🇨🇴",HR:"🇭🇷",CY:"🇨🇾",CZ:"🇨🇿",DK:"🇩🇰",EC:"🇪🇨",EG:"🇪🇬",SV:"🇸🇻",EE:"🇪🇪",FI:"🇫🇮",FR:"🇫🇷",GE:"🇬🇪",DE:"🇩🇪",GR:"🇬🇷",GT:"🇬🇹",HK:"🇭🇰",HU:"🇭🇺",IS:"🇮🇸",IN:"🇮🇳",ID:"🇮🇩",IE:"🇮🇪",IL:"🇮🇱",IT:"🇮🇹",JP:"🇯🇵",KE:"🇰🇪",KR:"🇰🇷",LV:"🇱🇻",LT:"🇱🇹",LU:"🇱🇺",MK:"🇲🇰",MY:"🇲🇾",MT:"🇲🇹",MX:"🇲🇽",MD:"🇲🇩",NL:"🇳🇱",NZ:"🇳🇿",NG:"🇳🇬",NO:"🇳🇴",PA:"🇵🇦",PY:"🇵🇾",PE:"🇵🇪",PH:"🇵🇭",PL:"🇵🇱",PT:"🇵🇹",RO:"🇷🇴",RU:"🇷🇺",RS:"🇷🇸",SK:"🇸🇰",SI:"🇸🇮",ZA:"🇿🇦",ES:"🇪🇸",SE:"🇸🇪",CH:"🇨🇭",TW:"🇹🇼",TH:"🇹🇭",TR:"🇹🇷",UA:"🇺🇦",AE:"🇦🇪",GB:"🇬🇧",US:"🇺🇸",UY:"🇺🇾",VN:"🇻🇳",SG:"🇸🇬"};
+
+// نگاشت identifier پروتکل به اسم خوانا
+const PROTO_NAMES = {
+  openvpn_udp: 'OpenVPN UDP',
+  openvpn_tcp: 'OpenVPN TCP',
+  wireguard_udp: 'WireGuard',
+  ikev2: 'IKEv2',
+  nordlynx: 'NordLynx',
+  proxy: 'SOCKS5',
+  proxy_ssl: 'HTTP Proxy',
+};
+
+let allData = [];         // داده خلاصه شده به تفکیک کشور
+let allServersData = [];  // لیست کامل سرورها از API
+let sortCol = 'load';
+let sortDir = -1;
+let filterMode = 'all';
+let pingRunning = false;
+let currentModalServers = []; // سرورهای در حال نمایش موودال
+
+// ================== API fetch ==================
+
+async function fetchAPI() {
+  try {
+    // وضعیت منابع داده
+    const dataStatus = await fetch('/api/data/status').then(r => r.json()).catch(() => ({}));
+
+    const [recRes, statsRes, countriesRes] = await Promise.all([
+      fetch('/api/servers/recommendations'),
+      fetch('/api/servers/stats'),
+      fetch('/api/servers/countries')
+    ]);
+
+    if (!recRes.ok) {
+      const errData = await recRes.json().catch(() => ({}));
+      throw new Error(errData.message || errData.error || 'HTTP ' + recRes.status);
+    }
+
+    const dataSource = recRes.headers.get('x-data-source') || 'unknown';
+    const recs = await recRes.json();
+    const stats = await statsRes.json();
+    const cList = await countriesRes.json();
+
+    allServersData = recs;
+
+    // نمایش منبع داده
+    const bar = document.getElementById('cache-bar');
+    bar.style.display = 'flex';
+    if (dataSource === 'nord-local-cache') {
+      const ageMin = dataStatus.nordLocalCache?.ageMinutes || '?';
+      const sizeKB = dataStatus.nordLocalCache?.sizeKB || '?';
+      bar.style.background = '#e8f5e9';
+      bar.style.borderColor = '#81c784';
+      document.getElementById('cache-msg').textContent =
+        `📦 از cache محلی NordVPN — ${recs.length} سرور | ${sizeKB} KB | ${ageMin} دقیقه پیش`;
+    } else if (dataSource === 'own-cache') {
+      bar.style.background = '#fff8e1';
+      bar.style.borderColor = '#ffd54f';
+      document.getElementById('cache-msg').textContent =
+        `📁 از cache ذخیره‌شده — ${recs.length} سرور`;
+    } else {
+      bar.style.background = '#e3f2fd';
+      bar.style.borderColor = '#64b5f6';
+      document.getElementById('cache-msg').textContent =
+        `🟢 داده زنده از API — ${recs.length} سرور`;
+    }
+
+    const byCountry = {};
+    recs.forEach(s => {
+      const loc = s.locations?.[0];
+      if (!loc) return;
+      const code = loc.country?.code;
+      const name = loc.country?.name;
+      if (!code) return;
+      if (!byCountry[code]) {
+        byCountry[code] = { name, code, continent: '', loads: [], p2p: false, serverCount: 0, hosts: [], protocols: new Set() };
+      }
+      byCountry[code].loads.push(s.load || 0);
+      byCountry[code].serverCount++;
+      if (byCountry[code].hosts.length < 5) {
+        byCountry[code].hosts.push(s.hostname);
+      }
+      // پروتکل‌ها — از هر دو فرمت (identifier یا protocols)
+      const protos = s.protocols || [];
+      protos.forEach(p => { if (p && p !== 'unknown') byCountry[code].protocols.add(p); });
+      (s.technologies || []).forEach(t => {
+        if (t.status === 'online') {
+          const pname = PROTO_NAMES[t.identifier] || t.identifier;
+          if (pname && pname !== 'unknown' && !pname.match(/^\d+$/)) byCountry[code].protocols.add(pname);
+        }
+      });
+      if (s.p2p) byCountry[code].p2p = true;
+      s.groups?.forEach(g => {
+        if (g.identifier === 'legacy_p2p' || g.title === 'P2P') byCountry[code].p2p = true;
+      });
+    });
+
+    // continent از countries API یا از groups سرور
+    const contMap = {};
+    cList.forEach(c => { if (c.continent) contMap[c.code] = c.continent; });
+
+    // اگه countries API continent نداد، از group title استفاده کن
+    const CONTINENT_NAMES = new Set([
+      'Europe', 'The Americas', 'Asia Pacific',
+      'Africa, the Middle East and India', 'Africa'
+    ]);
+    allServersData.forEach(s => {
+      const code = s.locations?.[0]?.country?.code;
+      if (!code || contMap[code]) return;
+      const grp = (s.groups || []).find(g => CONTINENT_NAMES.has(g.title));
+      if (grp) contMap[code] = grp.title;
+    });
+
+    allData = Object.values(byCountry).map(c => ({
+      ...c,
+      protocols: [...c.protocols],
+      load: c.loads.length ? Math.round(c.loads.reduce((a, b) => a + b, 0) / c.loads.length) : 0,
+      servers: c.serverCount,
+      continent: contMap[c.code] || 'Other'
+    }));
+
+    document.getElementById('s-users').textContent = stats.users ? (stats.users / 1e6).toFixed(1) + 'M' : '—';
+    document.getElementById('s-conn').textContent = stats.connections ? stats.connections.toLocaleString() : '—';
+    document.getElementById('s-locs').textContent = allData.length;
+    document.getElementById('s-srv').textContent = allData.reduce((a, c) => a + c.servers, 0).toLocaleString();
+    document.getElementById('live-badge').textContent = dataSource === 'live-api' ? '🟢 Live API' : '📦 Local cache';
+    document.getElementById('status-txt').textContent = `${allData.length} کشور، ${allServersData.length} سرور`;
+
+    buildContinents();
+    showTable();
+    render();
+  } catch (e) {
+    console.error('fetchAPI error:', e);
+    useFallback(e.message);
+  }
+}
+
+async function refreshCache() {
+  const btn = document.getElementById('refresh-cache-btn');
+  const status = document.getElementById('refresh-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ در حال fetch...';
+  status.textContent = '';
+  try {
+    const res = await fetch('/api/cache/refresh');
+    const data = await res.json();
+    if (data.ok) {
+      status.textContent = `✅ ${data.servers} سرور cache شد`;
+      btn.textContent = '🔄 Refresh (VPN فعال باشه)';
+      btn.disabled = false;
+      // reload داده‌ها
+      allServersData = [];
+      allData = [];
+      document.getElementById('cache-bar').style.display = 'none';
+      document.getElementById('overlay').style.display = 'flex';
+      document.getElementById('main-table').style.display = 'none';
+      fetchAPI();
+    } else {
+      status.textContent = '❌ ' + (data.error || 'خطا');
+      btn.disabled = false;
+      btn.textContent = '🔄 Refresh (VPN فعال باشه)';
+    }
+  } catch (e) {
+    status.textContent = '❌ سرور در دسترس نیست';
+    btn.disabled = false;
+    btn.textContent = '🔄 Refresh (VPN فعال باشه)';
+  }
+}
+
+function useFallback(errMsg) {
+  document.getElementById('live-badge').textContent = '🔴 Error';
+  document.getElementById('live-dot').style.background = '#E24B4A';
+  document.getElementById('status-txt').textContent = errMsg || 'خطا در دریافت داده';
+  document.getElementById('api-note').style.display = 'block';
+  document.getElementById('api-note').innerHTML =
+    '<strong>⚠ خطا:</strong> ' + (errMsg || 'نامشخص') + '<br>' +
+    'مطمئن شو <code>node server.js</code> داره اجرا میشه.';
+
+  const bar = document.getElementById('cache-bar');
+  bar.style.display = 'flex';
+  bar.style.background = '#fce4e4';
+  bar.style.borderColor = '#e24b4a';
+  document.getElementById('cache-msg').textContent = '❌ خطا در بارگذاری داده';
+
+  allData = [];
+  buildContinents();
+  showTable();
+  render();
+}
+
+function buildContinents() {
+  const conts = [...new Set(allData.map(d => d.continent).filter(Boolean))].sort();
+  const sel = document.getElementById('continent');
+  // پاک کردن گزینه‌های قبلی (جز All)
+  while (sel.options.length > 1) sel.remove(1);
+  conts.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c;
+    o.textContent = c;
+    sel.appendChild(o);
+  });
+}
+
+function showTable() {
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('main-table').style.display = 'table';
+}
+
+// ================== Ping ==================
+
+async function pingHost(hostname) {
+  try {
+    const res = await fetch(`/api/ping?host=${encodeURIComponent(hostname)}`, { cache: 'no-store' });
+    const data = await res.json();
+    // ذخیره اطلاعات VPN accessibility
+    portsData[hostname] = { vpnAccessible: data.vpnAccessible, method: data.method };
+    return data.ms !== undefined ? data.ms : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function pingAll() {
+  if (pingRunning) return;
+  pingRunning = true;
+
+  const btn = document.getElementById('ping-btn');
+  const prog = document.getElementById('ping-progress');
+  btn.classList.add('running');
+  btn.textContent = '⏳ Testing...';
+
+  // از هر کشور بهترین هاست رو پینگ میکنیم
+  const batchSize = 6;
+  let done = 0;
+
+  for (let i = 0; i < allData.length; i += batchSize) {
+    const batch = allData.slice(i, i + batchSize);
+    await Promise.all(batch.map(async d => {
+      if (!d.hosts?.length) return;
+      const ms = await pingHost(d.hosts[0]);
+      pingData[d.hosts[0]] = ms;
+      done++;
+      prog.textContent = `${done}/${allData.length}`;
+    }));
+    render();
+  }
+
+  btn.classList.remove('running');
+  btn.textContent = '📡 Re-test ping';
+  prog.textContent = '';
+  pingRunning = false;
+}
+
+// ================== Sorting / filtering ==================
+
+function loadColor(n) { return n <= 30 ? '#1D9E75' : n <= 60 ? '#EF9F27' : '#E24B4A'; }
+
+function setFilter(m) {
+  filterMode = m;
+  ['all', 'p2p', 'free'].forEach(x => document.getElementById('f-' + x).classList.toggle('active', x === m));
+  render();
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = (col === 'name' || col === 'continent') ? 1 : -1; }
+  render();
+}
+
+// ================== Ping cell helper ==================
+
+let pingData = {};         // hostname -> ms
+let portsData = {};        // hostname -> {vpnAccessible, method}
+
+function pingCellForHost(hostname) {
+  if (!(hostname in pingData)) {
+    return `<button class="ping-btn-small" onclick="event.stopPropagation(); pingAll()">Ping</button>`;
+  }
+  const val = pingData[hostname];
+  if (val === null) {
+    return `<div class="ping-cell"><span class="ping-dot dot-grey"></span><span class="ping-val" style="color:#999">Timeout</span></div>`;
+  }
+
+  const cls = val <= 80 ? 'dot-good' : val <= 150 ? 'dot-mid' : 'dot-bad';
+  const color = val <= 80 ? '#1D9E75' : val <= 150 ? '#EF9F27' : '#E24B4A';
+  const info = portsData[hostname] || {};
+
+  // آیکون: اگه VPN accessible هست ✓ اگه فقط ICMP بود ⚠
+  let badge = '';
+  if (info.vpnAccessible === true) {
+    const protoMap = {
+      'tls443':  'TLS 443',
+      'tls80':   'TLS 80',
+      'tls1194': 'TLS 1194',
+      'wg51820': 'WireGuard',
+    };
+    const proto = protoMap[info.method] || info.method || 'VPN';
+    badge = ` <span title="VPN accessible — TLS handshake موفق (${proto})" style="color:#1D9E75;font-size:10px">✓VPN</span>`;
+  } else if (info.method === 'tcp443-syn') {
+    badge = ` <span title="TCP SYN قبول شد ولی TLS handshake نشد — احتمال DPI/فیلتر" style="color:#EF9F27;font-size:10px">⚠DPI</span>`;
+  } else if (info.vpnAccessible === false && val !== null) {
+    badge = ` <span title="IP زنده‌ست (ICMP) ولی VPN port کاملاً بلاکه" style="color:#E24B4A;font-size:10px">✕VPN</span>`;
+  }
+
+  return `<div class="ping-cell"><span class="ping-dot ${cls}"></span><span class="ping-val" style="color:${color}">${val} ms${badge}</span></div>`;
+}
+
+// ================== Main table render ==================
+
+function render() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const cont = document.getElementById('continent').value;
+  let rows = allData.filter(d => {
+    if (q && !d.name.toLowerCase().includes(q) && !d.code.toLowerCase().includes(q)) return false;
+    if (cont && d.continent !== cont) return false;
+    if (filterMode === 'p2p' && !d.p2p) return false;
+    return true;
+  });
+
+  rows.sort((a, b) => {
+    if (sortCol === 'ping') {
+      // بر اساس پینگ هاست اول هر کشور
+      const pa = a.hosts?.[0] && pingData[a.hosts[0]] != null ? pingData[a.hosts[0]] : 9999;
+      const pb = b.hosts?.[0] && pingData[b.hosts[0]] != null ? pingData[b.hosts[0]] : 9999;
+      return sortDir * (pa - pb);
+    }
+    const av = a[sortCol], bv = b[sortCol];
+    if (typeof av === 'string') return sortDir * av.localeCompare(bv);
+    return sortDir * ((av || 0) - (bv || 0));
+  });
+
+  document.getElementById('tbody').innerHTML = rows.map(d => {
+    const pingHtml = d.hosts?.[0] ? pingCellForHost(d.hosts[0]) : '—';
+    return `<tr onclick="showServers('${d.code}', '${d.name.replace(/'/g, "\\'")}')">
+      <td><span style="font-size:15px;margin-right:6px">${flags[d.code] || '🌐'}</span>${d.name}</td>
+      <td style="color:#888;font-size:12px">${d.continent || '—'}</td>
+      <td>
+        <div class="load-bar-wrap">
+          <div class="load-track"><div class="load-fill" style="width:${d.load}%;background:${loadColor(d.load)}"></div></div>
+          <span style="font-size:12px;font-weight:600;color:${loadColor(d.load)}">${d.load}%</span>
+        </div>
+      </td>
+      <td>${pingHtml}</td>
+      <td style="text-align:center;font-size:12px;color:#555">${d.servers}</td>
+      <td>${d.p2p ? '<span class="badge b-p2p">✓ P2P</span>' : '—'}</td>
+      <td><span class="badge b-free">Free</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ================== Modal ==================
+
+function closeModal() {
+  document.getElementById('servers-modal').classList.remove('active');
+  currentModalServers = [];
+}
+
+function showServers(countryCode, countryName) {
+  currentModalServers = allServersData.filter(s => s.locations?.[0]?.country?.code === countryCode);
+  // مرتب‌سازی بر اساس load
+  currentModalServers.sort((a, b) => (a.load || 0) - (b.load || 0));
+  document.getElementById('modal-title').textContent =
+    `${flags[countryCode] || '🌐'} ${countryName} — ${currentModalServers.length} servers`;
+
+  renderModalTable();
+  document.getElementById('servers-modal').classList.add('active');
+}
+
+function renderModalTable() {
+  const html = currentModalServers.map(s => {
+    const pingVal = pingData[s.hostname];
+    let pingHtml;
+    if (s.hostname in pingData) {
+      if (pingVal === null) {
+        pingHtml = `<span style="color:#E24B4A;font-size:12px">Timeout</span>`;
+      } else {
+        const color = pingVal <= 80 ? '#1D9E75' : pingVal <= 150 ? '#EF9F27' : '#E24B4A';
+        pingHtml = `<span style="color:${color};font-weight:600;font-size:12px">${pingVal} ms</span>`;
+      }
+    } else {
+      pingHtml = `<button class="ping-btn-small" data-host="${s.hostname}" onclick="pingSingleModal(this)">Ping</button>`;
+    }
+
+    const protocols = (s.protocols || []).filter(p => p && p !== 'unknown');
+    const protoHtml = protocols.length
+      ? protocols.map(p => `<span class="proto-tag">${p}</span>`).join('')
+      : '<span style="color:#ccc;font-size:11px">—</span>';
+
+    // اسم نمایشی در اپ نورد
+    const displayName = s.name || hostToDisplay(s.hostname);
+
+    return `<tr>
+      <td><span class="server-hostname">${s.hostname}</span></td>
+      <td style="font-size:12px;color:#333">${displayName}</td>
+      <td style="text-align:center"><strong style="color:${loadColor(s.load)}">${s.load}%</strong></td>
+      <td id="ping-cell-${s.hostname.replace(/\./g, '_')}">${pingHtml}</td>
+      <td>${protoHtml}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('servers-tbody').innerHTML = html;
+}
+
+async function pingSingleModal(btn) {
+  const hostname = btn.dataset.host;
+  if (!hostname) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ping-spinner"></span>';
+
+  const ms = await pingHost(hostname);
+  pingData[hostname] = ms;
+
+  const info = portsData[hostname] || {};
+  let portBadge = '';
+  if (info.vpnAccessible === true) {
+    const protoMap = { 'tls443': 'TLS 443', 'tls80': 'TLS 80', 'tls1194': 'TLS 1194', 'wg51820': 'WireGuard' };
+    const proto = protoMap[info.method] || info.method || 'VPN';
+    portBadge = ` <span style="color:#1D9E75;font-size:10px" title="${proto}">✓VPN</span>`;
+  } else if (info.method === 'tcp443-syn') {
+    portBadge = ' <span title="DPI احتمالی — TLS block شده" style="color:#EF9F27;font-size:10px">⚠DPI</span>';
+  } else if (info.vpnAccessible === false && ms !== null) {
+    portBadge = ' <span title="VPN port بلاکه" style="color:#E24B4A;font-size:10px">✕VPN</span>';
+  }
+  const cellId = 'ping-cell-' + hostname.replace(/\./g, '_');
+  const cell = document.getElementById(cellId);
+  if (cell) {
+    if (ms === null) {
+      cell.innerHTML = `<span style="color:#E24B4A;font-size:12px">Timeout</span>`;
+    } else {
+      const color = ms <= 80 ? '#1D9E75' : ms <= 150 ? '#EF9F27' : '#E24B4A';
+      cell.innerHTML = `<span style="color:${color};font-weight:600;font-size:12px">${ms} ms${portBadge}</span>`;
+    }
+  }
+  render();
+}
+
+async function pingAllModalServers() {
+  const btn = document.getElementById('modal-ping-btn');
+  const prog = document.getElementById('modal-ping-progress');
+  btn.disabled = true;
+  btn.textContent = '⏳ Testing...';
+
+  const batchSize = 5;
+  let done = 0;
+  const total = currentModalServers.length;
+
+  for (let i = 0; i < currentModalServers.length; i += batchSize) {
+    const batch = currentModalServers.slice(i, i + batchSize);
+    await Promise.all(batch.map(async s => {
+        const ms = await pingHost(s.hostname);
+        pingData[s.hostname] = ms;
+        done++;
+        prog.textContent = `${done}/${total}`;
+
+        const info2 = portsData[s.hostname] || {};
+        let portBadge = '';
+        if (info2.vpnAccessible === true) {
+          const protoMap = { 'tls443': 'TLS 443', 'tls80': 'TLS 80', 'tls1194': 'TLS 1194', 'wg51820': 'WG' };
+          const proto = protoMap[info2.method] || info2.method || 'VPN';
+          portBadge = ` <span style="color:#1D9E75;font-size:10px" title="${proto}">✓</span>`;
+        } else if (info2.method === 'tcp443-syn') {
+          portBadge = ' <span title="DPI احتمالی — TLS block شده" style="color:#EF9F27;font-size:10px">⚠</span>';
+        } else if (info2.vpnAccessible === false && ms !== null) {
+          portBadge = ' <span title="VPN port بلاکه" style="color:#E24B4A;font-size:10px">✕</span>';
+        }
+
+        const cellId = 'ping-cell-' + s.hostname.replace(/\./g, '_');
+        const cell = document.getElementById(cellId);
+        if (cell) {
+          if (ms === null) {
+            cell.innerHTML = `<span style="color:#E24B4A;font-size:12px">Timeout</span>`;
+          } else {
+            const color = ms <= 80 ? '#1D9E75' : ms <= 150 ? '#EF9F27' : '#E24B4A';
+            cell.innerHTML = `<span style="color:${color};font-weight:600;font-size:12px">${ms} ms${portBadge}</span>`;
+          }
+        }
+      }));
+  }
+
+  prog.textContent = `Done (${total})`;
+  btn.disabled = false;
+  btn.textContent = '📡 Ping all';
+  render(); // آپدیت جدول اصلی
+}
+
+// hostname -> نام نمایشی اپ نورد (مثلاً de1280.nordvpn.com -> Germany #1280)
+function hostToDisplay(hostname) {
+  const m = hostname.match(/^([a-z]{2,3})(\d+)\.nordvpn\.com$/i);
+  if (!m) return hostname;
+  const countryNames = {
+    de:'Germany', us:'United States', gb:'United Kingdom', nl:'Netherlands',
+    fr:'France', ch:'Switzerland', se:'Sweden', no:'Norway', fi:'Finland',
+    jp:'Japan', sg:'Singapore', ca:'Canada', au:'Australia', it:'Italy',
+    es:'Spain', pl:'Poland', ro:'Romania', be:'Belgium', at:'Austria',
+    cz:'Czech Republic', hu:'Hungary', dk:'Denmark', nz:'New Zealand',
+    hk:'Hong Kong', kr:'South Korea', br:'Brazil', mx:'Mexico',
+    il:'Israel', ae:'UAE', tr:'Turkey', ua:'Ukraine', vn:'Vietnam',
+    id:'Indonesia', th:'Thailand', tw:'Taiwan', bg:'Bulgaria',
+    rs:'Serbia', gr:'Greece', pt:'Portugal', is:'Iceland',
+  };
+  const country = countryNames[m[1].toLowerCase()] || m[1].toUpperCase();
+  return `${country} #${parseInt(m[2])}`;
+}
+
+// ================== Connection status polling ==================
+
+async function checkConnectionStatus() {
+  try {
+    const res = await fetch('/api/connection/status');
+    const data = await res.json();
+    const bar = document.getElementById('conn-bar');
+    if (data.connected && data.hostname) {
+      bar.style.display = 'flex';
+      document.getElementById('conn-server').textContent = data.displayName || data.hostname;
+      const protoEl = document.getElementById('conn-proto');
+      protoEl.textContent = data.protocol || '';
+      protoEl.style.display = data.protocol ? 'inline' : 'none';
+      // نمایش پینگ سرور متصل
+      const pingVal = pingData[data.hostname];
+      if (pingVal != null) {
+        document.getElementById('conn-ping').textContent = `📡 ${pingVal} ms`;
+      }
+    } else {
+      bar.style.display = 'none';
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// ================== Init ==================
+
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('servers-modal');
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+});
+
+fetchAPI();
+// بررسی وضعیت اتصال هر 5 ثانیه
+checkConnectionStatus();
+setInterval(checkConnectionStatus, 5000);
+</script>
+</body>
+</html>

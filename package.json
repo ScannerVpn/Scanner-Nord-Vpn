@@ -1,0 +1,36 @@
+{
+  "name": "nordvpn-dashboard",
+  "version": "1.0.0",
+  "description": "NordVPN Dashboard with API Proxy",
+  "main": "main.js",
+
+  "scripts": {
+    "start": "electron .",
+    "dev": "node server.js",
+    "dist": "electron-builder"
+  },
+
+  "keywords": [
+    "nordvpn",
+    "dashboard"
+  ],
+
+  "author": "",
+  "license": "MIT",
+
+  "dependencies": {},
+
+  "devDependencies": {
+    "electron": "^42.3.0",
+    "electron-builder": "^26.0.12"
+  },
+
+  "build": {
+    "appId": "com.nord.dashboard",
+    "productName": "NordVPN Dashboard",
+
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
