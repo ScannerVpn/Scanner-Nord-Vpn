@@ -10,11 +10,7 @@
     "dist": "electron-builder"
   },
 
-  "keywords": [
-    "nordvpn",
-    "dashboard"
-  ],
-
+  "keywords": ["nordvpn", "dashboard"],
   "author": "",
   "license": "MIT",
 
@@ -29,8 +25,27 @@
     "appId": "com.nord.dashboard",
     "productName": "NordVPN Dashboard",
 
+    "files": [
+      "main.js",
+      "server.js",
+      "nordvpn_dashboard.html",
+      "package.json"
+    ],
+
+    "asar": true,
+    "asarUnpack": [
+      "nordvpn_dashboard.html"
+    ],
+
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "requestedExecutionLevel": "asInvoker"
+    },
+
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
     }
   }
 }
