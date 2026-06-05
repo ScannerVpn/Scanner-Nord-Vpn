@@ -128,6 +128,45 @@ Output will be in the `dist/` folder.
 
 ---
 
+## 📱 Android (Termux)
+
+میتونی همین داشبورد رو روی گوشی اندروید هم اجرا کنی — بدون نیاز به root یا نصب apk خاص.
+
+### نصب Termux
+از [F-Droid](https://f-droid.org/packages/com.termux/) دانلود کن (نه Google Play).
+
+### اجرا
+
+```bash
+# آپدیت پکیج‌ها
+pkg update && pkg upgrade
+
+# نصب Node.js و git
+pkg install nodejs git
+
+# کلون پروژه
+git clone https://github.com/ScannerVpn/Scanner-Nord-Vpn.git
+cd Scanner-Nord-Vpn
+
+# نصب dependencies
+npm install
+
+# اجرای سرور
+node server.js
+```
+
+بعد مرورگر گوشی رو باز کن و برو:
+```
+http://localhost:3000/dashboard.html
+```
+
+### ⚠️ نکته
+- **TLS probe** کاملاً کار میکنه — نتایج `✓VPN` و `⚠DPI` دقیق هستن
+- **ICMP ping** بدون root کار نمیکنه — سرورهایی که فقط ICMP دارن `✕VPN` نشون میده (نرمالِ)
+- برای اجرای پس‌زمینه از `nohup node server.js &` استفاده کن
+
+---
+
 ## 📄 License
 
 MIT
